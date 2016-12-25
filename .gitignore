@@ -34,3 +34,6 @@
 
 # Results
 test_drv
+slow_entrypoints.c
+slow_entrypoints.h
+libvulkan_slow.so
