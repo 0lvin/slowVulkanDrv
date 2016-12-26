@@ -20,7 +20,7 @@ slow_entrypoints.o: slow_entrypoints.c slow_entrypoints.h
 	gcc -fPIC -g -c -Wall slow_entrypoints.c
 
 head.o: head.c slow_private.h slow_entrypoints.h
-	gcc -fPIC -g -c -Wall head.c
+	gcc -fPIC -g -c -Wall head.c -Iinclude
 
 libvulkan_slow.so: head.o slow_entrypoints.o
 	gcc -shared -Wl,-soname,libvulkan_slow.so.1 -o $@ head.o slow_entrypoints.o -lc

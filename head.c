@@ -41,6 +41,23 @@ VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vk_icdGetInstanceProcAddr(VkInstance in
 	return slow_lookup_entrypoint(pName);
 }
 
+PFN_vkVoidFunction slow_GetDeviceProcAddr(
+	VkDevice                                    device,
+	const char*                                 pName)
+{
+	void * result = NULL;
+	if (!pName) {
+		printf("Loader asked something strange!\n");
+		return NULL;
+	}
+	printf("Loader asked about '%s' function.\n", pName);
+	result = slow_lookup_entrypoint(pName);
+	if (!result) {
+		printf("Loader asked about '%s' function, but we dont have such.\n", pName);
+	}
+	return slow_lookup_entrypoint(pName);
+}
+
 static const VkExtensionProperties global_extensions[] = {
 	{
 		.extensionName = VK_KHR_SURFACE_EXTENSION_NAME,
@@ -105,11 +122,32 @@ VkResult slow_CreateInstance(
 	const VkAllocationCallbacks*                pAllocator,
 	VkInstance*                                 pInstance)
 {
-	return VK_ERROR_INCOMPATIBLE_DRIVER;
+	*pInstance = malloc(sizeof(VkInstance));
+	return VK_SUCCESS;
 }
 
 void slow_DestroyInstance(
-	VkInstance                                  _instance,
+	VkInstance                                  instance,
 	const VkAllocationCallbacks*                pAllocator)
 {
+	free(instance);
+}
+
+VkResult slow_EnumerateInstanceExtensionProperties(
+	const char*                                 pLayerName,
+	uint32_t*                                   pPropertyCount,
+	VkExtensionProperties*                      pProperties)
+{
+	if (pProperties == NULL) {
+		*pPropertyCount = ARRAY_SIZE(global_extensions);
+		return VK_SUCCESS;
+	}
+
+	*pPropertyCount = MIN2(*pPropertyCount, ARRAY_SIZE(global_extensions));
+	typed_memcpy(pProperties, global_extensions, *pPropertyCount);
+
+	if (*pPropertyCount < ARRAY_SIZE(global_extensions))
+		return VK_INCOMPLETE;
+
+	return VK_SUCCESS;
 }
