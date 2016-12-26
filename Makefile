@@ -1,4 +1,4 @@
-all: libvulkan_slow.so
+all: test_drv libvulkan_slow.so
 
 PYTHON2 = python2
 
@@ -6,6 +6,9 @@ PYTHON2 = python2
 vulkan_include_HEADERS = \
 	/usr/include/vulkan/vk_platform.h \
 	/usr/include/vulkan/vulkan.h
+
+test_drv: test_drv.c
+	gcc -g test_drv.c -lvulkan -o test_drv
 
 slow_entrypoints.h: slow_entrypoints_gen.py $(vulkan_include_HEADERS)
 	cat $(vulkan_include_HEADERS) | $(PYTHON2) slow_entrypoints_gen.py header > $@
@@ -25,4 +28,5 @@ libvulkan_slow.so: head.o slow_entrypoints.o
 clean:
 	rm -f *.o
 	rm -f *.so
+	rm -f test_drv
 	rm -f slow_entrypoints.*
