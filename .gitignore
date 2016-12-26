@@ -31,3 +31,8 @@
 # Debug files
 *.dSYM/
 *.su
+
+# Results
+slow_entrypoints.c
+slow_entrypoints.h
+libvulkan_slow.so
