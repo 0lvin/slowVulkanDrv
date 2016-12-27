@@ -9,6 +9,11 @@
 #include "slow_entrypoints.h"
 #include "util/macros.h"
 
+#define MAX_PUSH_CONSTANTS_SIZE 128
+#define MAX_SETS         8
+#define MAX_VIEWPORTS   16
+#define MAX_RTS          8
+
 void *slow_lookup_entrypoint(const char *name);
 
 #define typed_memcpy(dest, src, count) ({				\
