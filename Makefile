@@ -22,8 +22,14 @@ slow_device.o: slow_device.c slow_private.h slow_entrypoints.h
 slow_formats.o: slow_formats.c slow_private.h slow_entrypoints.h
 	gcc -fPIC -g -c -Wall slow_formats.c -Iinclude
 
-libvulkan_slow.so: slow_device.o slow_entrypoints.o slow_formats.o
-	gcc -shared -Wl,-soname,libvulkan_slow.so.1 -o $@ slow_device.o slow_entrypoints.o slow_formats.o -lc
+slow_wsi.o: slow_wsi.c slow_private.h slow_entrypoints.h
+	gcc -fPIC -g -c -Wall slow_wsi.c -Iinclude
+
+slow_wsi_x11.o: slow_wsi_x11.c slow_private.h slow_entrypoints.h
+	gcc -fPIC -g -c -Wall slow_wsi_x11.c -Iinclude
+
+libvulkan_slow.so: slow_device.o slow_entrypoints.o slow_formats.o slow_wsi.o slow_wsi_x11.o
+	gcc -shared -Wl,-soname,libvulkan_slow.so.1 -o $@ slow_device.o slow_formats.o slow_wsi.o slow_wsi_x11.o slow_entrypoints.o -lc
 
 clean:
 	rm -f *.o

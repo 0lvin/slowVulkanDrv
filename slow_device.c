@@ -36,9 +36,9 @@ VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vk_icdGetInstanceProcAddr(VkInstance in
 	printf("Loader asked about '%s' function.\n", pName);
 	result = slow_lookup_entrypoint(pName);
 	if (!result) {
-		printf("Loader asked about '%s' function, but we dont have such.\n", pName);
+		printf("Loader asked about '%s' function, but we dont have such(%s).\n", pName, __func__);
 	}
-	return slow_lookup_entrypoint(pName);
+	return result;
 }
 
 PFN_vkVoidFunction slow_GetDeviceProcAddr(
@@ -53,9 +53,9 @@ PFN_vkVoidFunction slow_GetDeviceProcAddr(
 	printf("Loader asked about '%s' function.\n", pName);
 	result = slow_lookup_entrypoint(pName);
 	if (!result) {
-		printf("Loader asked about '%s' function, but we dont have such.\n", pName);
+		printf("Loader asked about '%s' function, but we dont have such(%s).\n", pName, __func__);
 	}
-	return slow_lookup_entrypoint(pName);
+	return result;
 }
 
 VkResult slow_EnumeratePhysicalDevices(
