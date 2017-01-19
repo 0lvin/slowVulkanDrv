@@ -65,7 +65,7 @@ VkResult slow_EnumeratePhysicalDevices(
 {
 	// TODO: enumerate devices
 
-	*pPhysicalDeviceCount = 0;
+	*pPhysicalDeviceCount = 1;
 
 	return VK_SUCCESS;
 }
@@ -231,9 +231,11 @@ VkResult slow_CreateDevice(
 	const VkAllocationCallbacks*                pAllocator,
 	VkDevice*                                   pDevice)
 {
-	// TODO: create device
+	*pDevice = malloc(sizeof(VkDevice));
 
-	return VK_ERROR_OUT_OF_HOST_MEMORY;
+	// TODO: implement create
+
+	return VK_SUCCESS;
 }
 
 void slow_GetPhysicalDeviceProperties(
