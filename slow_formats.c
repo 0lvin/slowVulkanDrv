@@ -11,7 +11,7 @@ void slow_GetPhysicalDeviceFormatProperties(
 {
 	VkFormatFeatureFlags linear = 0, tiled = 0, buffer = 0;
 
-	printf("Loader asked about %d\n", format);
+	printf("Loader asked about %d format\n", format);
 
 	// TODO: return really known formats
 

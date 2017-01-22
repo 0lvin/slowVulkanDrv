@@ -33,7 +33,7 @@ VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vk_icdGetInstanceProcAddr(VkInstance in
 		printf("Loader asked something strange!\n");
 		return NULL;
 	}
-	printf("Loader asked about '%s' function.\n", pName);
+	// printf("Loader asked about '%s' function.\n", pName);
 	result = slow_lookup_entrypoint(pName);
 	if (!result) {
 		printf("Loader asked about '%s' function, but we dont have such(%s).\n", pName, __func__);
@@ -50,7 +50,7 @@ PFN_vkVoidFunction slow_GetDeviceProcAddr(
 		printf("Loader asked something strange!\n");
 		return NULL;
 	}
-	printf("Loader asked about '%s' function.\n", pName);
+	// printf("Loader asked about '%s' function.\n", pName);
 	result = slow_lookup_entrypoint(pName);
 	if (!result) {
 		printf("Loader asked about '%s' function, but we dont have such(%s).\n", pName, __func__);
@@ -238,6 +238,14 @@ VkResult slow_CreateDevice(
 	return VK_SUCCESS;
 }
 
+void slow_DestroyDevice(
+	VkDevice device, 
+	const VkAllocationCallbacks* pAllocator)
+{
+	// TODO: implement destroy    
+	free(device);
+}
+
 void slow_GetPhysicalDeviceProperties(
 	VkPhysicalDevice                            physicalDevice,
 	VkPhysicalDeviceProperties*                 pProperties)
@@ -376,9 +384,19 @@ void slow_GetPhysicalDeviceMemoryProperties(
 	VkPhysicalDeviceMemoryProperties*           pMemoryProperties)
 {
 	// TODO: return real memory types
-	pMemoryProperties->memoryTypeCount = 0;
+	pMemoryProperties->memoryTypeCount = 1;
+	pMemoryProperties->memoryTypes[1] = (VkMemoryType) {
+		.propertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT |
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		.heapIndex = 1, // index in memoryHeaps
+	};
 
-	pMemoryProperties->memoryHeapCount = 0;
+	pMemoryProperties->memoryHeapCount = 1;
+	pMemoryProperties->memoryHeaps[1] = (VkMemoryHeap) {
+		.size = 256 * 1024 * 1024,
+		.flags = VK_MEMORY_HEAP_DEVICE_LOCAL_BIT,
+	};
 }
 
 void slow_GetPhysicalDeviceQueueFamilyProperties(
