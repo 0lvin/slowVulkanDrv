@@ -134,19 +134,71 @@ VkResult slow_CreateInstance(
 	const VkAllocationCallbacks*                pAllocator,
 	VkInstance*                                 pInstance)
 {
-	*pInstance = malloc(sizeof(VkInstance));
+	struct slow_instance *instance;
 
-	// TODO: implement create
+	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO);
+
+	uint32_t client_version;
+	if (pCreateInfo->pApplicationInfo &&
+	    pCreateInfo->pApplicationInfo->apiVersion != 0) {
+		client_version = pCreateInfo->pApplicationInfo->apiVersion;
+	} else {
+		client_version = VK_MAKE_VERSION(1, 0, 0);
+	}
+
+	if (VK_MAKE_VERSION(1, 0, 0) > client_version ||
+	    client_version > VK_MAKE_VERSION(1, 0, 0xfff)) {
+		printf("Client requested version %d.%d.%d\n",
+				 VK_VERSION_MAJOR(client_version),
+				 VK_VERSION_MINOR(client_version),
+				 VK_VERSION_PATCH(client_version));
+		return VK_ERROR_INCOMPATIBLE_DRIVER;
+	}
+
+	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; i++) {
+		bool found = false;
+		for (uint32_t j = 0; j < ARRAY_SIZE(global_extensions); j++) {
+			if (strcmp(pCreateInfo->ppEnabledExtensionNames[i],
+				   global_extensions[j].extensionName) == 0) {
+				found = true;
+				break;
+			}
+		}
+		if (!found)
+			return VK_ERROR_EXTENSION_NOT_PRESENT;
+	}
+
+	instance = vk_alloc2(&default_alloc, pAllocator, sizeof(*instance), 8,
+			       VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
+	if (!instance)
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+
+	instance->_loader_data.loaderMagic = ICD_LOADER_MAGIC;
+
+	if (pAllocator)
+		instance->alloc = *pAllocator;
+	else
+		instance->alloc = default_alloc;
+
+	instance->apiVersion = client_version;
+	instance->physicalDeviceCount = -1;
+
+	*pInstance = slow_instance_to_handle(instance);
 
 	return VK_SUCCESS;
 }
 
 void slow_DestroyInstance(
-	VkInstance                                  instance,
+	VkInstance                                  _instance,
 	const VkAllocationCallbacks*                pAllocator)
 {
-	// TODO: implement cleanup
-	free(instance);
+	SLOW_FROM_HANDLE(slow_instance, instance, _instance);
+
+	if (instance->physicalDeviceCount > 0) {
+		// TODO Cleanup devices
+	}
+
+	vk_free(&instance->alloc, instance);
 }
 
 VkResult slow_EnumerateInstanceExtensionProperties(
@@ -239,10 +291,10 @@ VkResult slow_CreateDevice(
 }
 
 void slow_DestroyDevice(
-	VkDevice device, 
+	VkDevice device,
 	const VkAllocationCallbacks* pAllocator)
 {
-	// TODO: implement destroy    
+	// TODO: implement destroy
 	free(device);
 }
 
@@ -385,7 +437,7 @@ void slow_GetPhysicalDeviceMemoryProperties(
 {
 	// TODO: return real memory types
 	pMemoryProperties->memoryTypeCount = 1;
-	pMemoryProperties->memoryTypes[1] = (VkMemoryType) {
+	pMemoryProperties->memoryTypes[0] = (VkMemoryType) {
 		.propertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT |
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
 		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
@@ -393,10 +445,28 @@ void slow_GetPhysicalDeviceMemoryProperties(
 	};
 
 	pMemoryProperties->memoryHeapCount = 1;
-	pMemoryProperties->memoryHeaps[1] = (VkMemoryHeap) {
+	pMemoryProperties->memoryHeaps[0] = (VkMemoryHeap) {
 		.size = 256 * 1024 * 1024,
 		.flags = VK_MEMORY_HEAP_DEVICE_LOCAL_BIT,
 	};
+}
+
+VkResult slow_AllocateMemory(
+	VkDevice                                    _device,
+	const VkMemoryAllocateInfo*                 pAllocateInfo,
+	const VkAllocationCallbacks*                pAllocator,
+	VkDeviceMemory*                             pMem)
+{
+	assert(pAllocateInfo->sType == VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO);
+
+	if (pAllocateInfo->allocationSize == 0) {
+		/* Apparently, this is allowed */
+		*pMem = VK_NULL_HANDLE;
+		return VK_SUCCESS;
+	}
+	// TODO: implement allocate memory
+	*pMem = VK_NULL_HANDLE;
+	return VK_ERROR_OUT_OF_HOST_MEMORY;
 }
 
 void slow_GetPhysicalDeviceQueueFamilyProperties(

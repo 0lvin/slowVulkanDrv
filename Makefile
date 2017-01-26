@@ -8,7 +8,7 @@ vulkan_include_HEADERS = \
 	/usr/include/vulkan/vulkan.h
 
 compute: compute.c
-	gcc compute.c -o compute -lvulkan
+	gcc -fPIC -g compute.c -o compute -lvulkan
 
 slow_entrypoints.h: slow_entrypoints_gen.py $(vulkan_include_HEADERS)
 	cat $(vulkan_include_HEADERS) | $(PYTHON2) slow_entrypoints_gen.py header > $@
