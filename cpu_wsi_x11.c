@@ -4,10 +4,10 @@
 #include <xcb/dri3.h>
 #include <xcb/present.h>
 
-#include "slow_private.h"
+#include "cpu_private.h"
 #include <stdbool.h>
 
-VkBool32 slow_GetPhysicalDeviceXcbPresentationSupportKHR(
+VkBool32 cpu_GetPhysicalDeviceXcbPresentationSupportKHR(
     VkPhysicalDevice                            physicalDevice,
     uint32_t                                    queueFamilyIndex,
     xcb_connection_t*                           connection,
@@ -17,7 +17,7 @@ VkBool32 slow_GetPhysicalDeviceXcbPresentationSupportKHR(
 	return false;
 }
 
-VkBool32 slow_GetPhysicalDeviceXlibPresentationSupportKHR(
+VkBool32 cpu_GetPhysicalDeviceXlibPresentationSupportKHR(
     VkPhysicalDevice                            physicalDevice,
     uint32_t                                    queueFamilyIndex,
     Display*                                    dpy,

@@ -1,10 +1,10 @@
 #include <stdio.h>
-#include "slow_private.h"
+#include "cpu_private.h"
 #include "vk_alloc.h"
 #include <stdbool.h>
 #include <vulkan/vk_icd.h>
 
-void slow_GetPhysicalDeviceFormatProperties(
+void cpu_GetPhysicalDeviceFormatProperties(
     VkPhysicalDevice                            physicalDevice,
     VkFormat                                    format,
     VkFormatProperties*                         pFormatProperties)
@@ -20,7 +20,7 @@ void slow_GetPhysicalDeviceFormatProperties(
 	pFormatProperties->bufferFeatures = buffer;
 }
 
-VkResult slow_GetPhysicalDeviceImageFormatProperties(
+VkResult cpu_GetPhysicalDeviceImageFormatProperties(
 	VkPhysicalDevice                            physicalDevice,
 	VkFormat                                    format,
 	VkImageType                                 type,
@@ -45,7 +45,7 @@ VkResult slow_GetPhysicalDeviceImageFormatProperties(
 	return VK_ERROR_FORMAT_NOT_SUPPORTED;
 }
 
-void slow_GetPhysicalDeviceSparseImageFormatProperties(
+void cpu_GetPhysicalDeviceSparseImageFormatProperties(
 	VkPhysicalDevice                            physicalDevice,
 	VkFormat                                    format,
 	VkImageType                                 type,

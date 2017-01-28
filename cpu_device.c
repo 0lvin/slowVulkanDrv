@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "slow_private.h"
+#include "cpu_private.h"
 #include "vk_alloc.h"
 #include <stdbool.h>
 #include <vulkan/vk_icd.h>
@@ -34,14 +34,14 @@ VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vk_icdGetInstanceProcAddr(VkInstance in
 		return NULL;
 	}
 	// printf("Loader asked about '%s' function.\n", pName);
-	result = slow_lookup_entrypoint(pName);
+	result = cpu_lookup_entrypoint(pName);
 	if (!result) {
 		printf("Loader asked about '%s' function, but we dont have such(%s).\n", pName, __func__);
 	}
 	return result;
 }
 
-PFN_vkVoidFunction slow_GetDeviceProcAddr(
+PFN_vkVoidFunction cpu_GetDeviceProcAddr(
 	VkDevice                                    device,
 	const char*                                 pName)
 {
@@ -51,23 +51,11 @@ PFN_vkVoidFunction slow_GetDeviceProcAddr(
 		return NULL;
 	}
 	// printf("Loader asked about '%s' function.\n", pName);
-	result = slow_lookup_entrypoint(pName);
+	result = cpu_lookup_entrypoint(pName);
 	if (!result) {
 		printf("Loader asked about '%s' function, but we dont have such(%s).\n", pName, __func__);
 	}
 	return result;
-}
-
-VkResult slow_EnumeratePhysicalDevices(
-	VkInstance                                  _instance,
-	uint32_t*                                   pPhysicalDeviceCount,
-	VkPhysicalDevice*                           pPhysicalDevices)
-{
-	// TODO: enumerate devices
-
-	*pPhysicalDeviceCount = 1;
-
-	return VK_SUCCESS;
 }
 
 static const VkExtensionProperties global_extensions[] = {
@@ -75,22 +63,10 @@ static const VkExtensionProperties global_extensions[] = {
 		.extensionName = VK_KHR_SURFACE_EXTENSION_NAME,
 		.specVersion = 25,
 	},
-#ifdef VK_USE_PLATFORM_XCB_KHR
-	{
-		.extensionName = VK_KHR_XCB_SURFACE_EXTENSION_NAME,
-		.specVersion = 6,
-	},
-#endif
 #ifdef VK_USE_PLATFORM_XLIB_KHR
 	{
 		.extensionName = VK_KHR_XLIB_SURFACE_EXTENSION_NAME,
 		.specVersion = 6,
-	},
-#endif
-#ifdef VK_USE_PLATFORM_WAYLAND_KHR
-	{
-		.extensionName = VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME,
-		.specVersion = 5,
 	},
 #endif
 };
@@ -129,12 +105,12 @@ static const VkAllocationCallbacks default_alloc = {
 	.pfnFree = default_free_func,
 };
 
-VkResult slow_CreateInstance(
+VkResult cpu_CreateInstance(
 	const VkInstanceCreateInfo*                 pCreateInfo,
 	const VkAllocationCallbacks*                pAllocator,
 	VkInstance*                                 pInstance)
 {
-	struct slow_instance *instance;
+	struct cpu_instance *instance;
 
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO);
 
@@ -183,25 +159,60 @@ VkResult slow_CreateInstance(
 	instance->apiVersion = client_version;
 	instance->physicalDeviceCount = -1;
 
-	*pInstance = slow_instance_to_handle(instance);
+	*pInstance = cpu_instance_to_handle(instance);
 
 	return VK_SUCCESS;
 }
 
-void slow_DestroyInstance(
+VkResult cpu_EnumeratePhysicalDevices(
+	VkInstance                                  _instance,
+	uint32_t*                                   pPhysicalDeviceCount,
+	VkPhysicalDevice*                           pPhysicalDevices)
+{
+	CPU_FROM_HANDLE(cpu_instance, instance, _instance);
+
+	if (instance->physicalDeviceCount < 0) {
+		struct cpu_physical_device* pDevice;
+		pDevice = vk_alloc2(&default_alloc, &instance->alloc, sizeof(*pDevice), 8,
+			       VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
+		if (!pDevice)
+			return VK_ERROR_OUT_OF_HOST_MEMORY;
+
+		pDevice->_loader_data.loaderMagic = ICD_LOADER_MAGIC;
+
+		pDevice->instance = instance;
+
+		instance->physicalDeviceCount = 1;
+
+		instance->physicalDevices[0] = cpu_physical_device_to_handle(pDevice);
+	}
+
+	if (pPhysicalDevices && (instance->physicalDeviceCount > 0)) {
+		for(int i = 0; i < instance->physicalDeviceCount; i++) {
+			pPhysicalDevices[i] = instance->physicalDevices[i];
+		}
+	}
+	*pPhysicalDeviceCount = instance->physicalDeviceCount;
+
+	return VK_SUCCESS;
+}
+
+void cpu_DestroyInstance(
 	VkInstance                                  _instance,
 	const VkAllocationCallbacks*                pAllocator)
 {
-	SLOW_FROM_HANDLE(slow_instance, instance, _instance);
+	CPU_FROM_HANDLE(cpu_instance, instance, _instance);
 
 	if (instance->physicalDeviceCount > 0) {
-		// TODO Cleanup devices
+		for(int i = 0; i < instance->physicalDeviceCount; i++) {
+			vk_free(&instance->alloc, instance->physicalDevices[i]);
+		}
 	}
 
 	vk_free(&instance->alloc, instance);
 }
 
-VkResult slow_EnumerateInstanceExtensionProperties(
+VkResult cpu_EnumerateInstanceExtensionProperties(
 	const char*                                 pLayerName,
 	uint32_t*                                   pPropertyCount,
 	VkExtensionProperties*                      pProperties)
@@ -220,7 +231,7 @@ VkResult slow_EnumerateInstanceExtensionProperties(
 	return VK_SUCCESS;
 }
 
-void slow_GetPhysicalDeviceFeatures(
+void cpu_GetPhysicalDeviceFeatures(
 	VkPhysicalDevice                            physicalDevice,
 	VkPhysicalDeviceFeatures*                   pFeatures)
 {
@@ -277,28 +288,55 @@ void slow_GetPhysicalDeviceFeatures(
 }
 
 
-VkResult slow_CreateDevice(
+VkResult cpu_CreateDevice(
 	VkPhysicalDevice                            physicalDevice,
 	const VkDeviceCreateInfo*                   pCreateInfo,
 	const VkAllocationCallbacks*                pAllocator,
 	VkDevice*                                   pDevice)
 {
-	*pDevice = malloc(sizeof(VkDevice));
+	CPU_FROM_HANDLE(cpu_physical_device, physical_device, physicalDevice);
+	struct cpu_device *device;
 
-	// TODO: implement create
+	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; i++) {
+		bool found = false;
+		for (uint32_t j = 0; j < ARRAY_SIZE(device_extensions); j++) {
+			if (strcmp(pCreateInfo->ppEnabledExtensionNames[i],
+				   device_extensions[j].extensionName) == 0) {
+				found = true;
+				break;
+			}
+		}
+		if (!found)
+			return VK_ERROR_EXTENSION_NOT_PRESENT;
+	}
 
+	device = vk_alloc2(&physical_device->instance->alloc, pAllocator,
+			     sizeof(*device), 8,
+			     VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	if (!device)
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+
+	device->_loader_data.loaderMagic = ICD_LOADER_MAGIC;
+	device->instance = physical_device->instance;
+
+	if (pAllocator)
+		device->alloc = *pAllocator;
+	else
+		device->alloc = physical_device->instance->alloc;
+
+	*pDevice = cpu_device_to_handle(device);
 	return VK_SUCCESS;
 }
 
-void slow_DestroyDevice(
-	VkDevice device,
-	const VkAllocationCallbacks* pAllocator)
+void cpu_DestroyDevice(
+	VkDevice                                    _device,
+	const VkAllocationCallbacks*                pAllocator)
 {
-	// TODO: implement destroy
-	free(device);
+	CPU_FROM_HANDLE(cpu_device, device, _device);
+	vk_free(&device->alloc, device);
 }
 
-void slow_GetPhysicalDeviceProperties(
+void cpu_GetPhysicalDeviceProperties(
 	VkPhysicalDevice                            physicalDevice,
 	VkPhysicalDeviceProperties*                 pProperties)
 {
@@ -423,15 +461,15 @@ void slow_GetPhysicalDeviceProperties(
 		.deviceID = 0,
 		.deviceType = VK_PHYSICAL_DEVICE_TYPE_CPU,
 		.limits = limits,
-		.sparseProperties = {0}, /* Broadwell doesn't do sparse. */
+		.sparseProperties = {0},
 	};
 
-	strcpy(pProperties->deviceName, "slow_fake");
+	strcpy(pProperties->deviceName, "cpu_fake");
 
 	// TODO: create device
 }
 
-void slow_GetPhysicalDeviceMemoryProperties(
+void cpu_GetPhysicalDeviceMemoryProperties(
 	VkPhysicalDevice                            physicalDevice,
 	VkPhysicalDeviceMemoryProperties*           pMemoryProperties)
 {
@@ -451,12 +489,15 @@ void slow_GetPhysicalDeviceMemoryProperties(
 	};
 }
 
-VkResult slow_AllocateMemory(
+VkResult cpu_AllocateMemory(
 	VkDevice                                    _device,
 	const VkMemoryAllocateInfo*                 pAllocateInfo,
 	const VkAllocationCallbacks*                pAllocator,
 	VkDeviceMemory*                             pMem)
 {
+	CPU_FROM_HANDLE(cpu_device, device, _device);
+	struct cpu_device_memory *mem;
+	VkResult result;
 	assert(pAllocateInfo->sType == VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO);
 
 	if (pAllocateInfo->allocationSize == 0) {
@@ -464,12 +505,86 @@ VkResult slow_AllocateMemory(
 		*pMem = VK_NULL_HANDLE;
 		return VK_SUCCESS;
 	}
-	// TODO: implement allocate memory
-	*pMem = VK_NULL_HANDLE;
+
+	mem = vk_alloc2(&device->alloc, pAllocator, sizeof(*mem), 8,
+			  VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+
+	if (mem == NULL)
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+	mem->map = vk_alloc2(&device->alloc, pAllocator, pAllocateInfo->allocationSize, 8,
+			  VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+
+	mem->map_size = pAllocateInfo->allocationSize;
+	if (!mem->map) {
+		result = VK_ERROR_OUT_OF_DEVICE_MEMORY;
+		goto fail;
+	}
+	mem->type_index = pAllocateInfo->memoryTypeIndex;
+
+	*pMem = cpu_device_memory_to_handle(mem);
+
+	return VK_SUCCESS;
+
+fail:
+	vk_free2(&device->alloc, pAllocator, mem);
+
+	return result;
+}
+
+VkResult cpu_MapMemory(
+	VkDevice                                    _device,
+	VkDeviceMemory                              _memory,
+	VkDeviceSize                                offset,
+	VkDeviceSize                                size,
+	VkMemoryMapFlags                            flags,
+	void**                                      ppData)
+{
+	CPU_FROM_HANDLE(cpu_device, device, _device);
+	CPU_FROM_HANDLE(cpu_device_memory, mem, _memory);
+
+	if (mem == NULL) {
+		*ppData = NULL;
+		return VK_SUCCESS;
+	}
+
+	printf("Map device: %p mem: %p\n", device, mem);
+
+	*ppData = mem->map;
+	if (*ppData) {
+		*ppData += offset;
+		return VK_SUCCESS;
+	}
+
+	// TODO implement map
+
+	return VK_ERROR_MEMORY_MAP_FAILED;
+}
+
+void cpu_UnmapMemory(
+	VkDevice                                    _device,
+	VkDeviceMemory                              _memory)
+{
+	CPU_FROM_HANDLE(cpu_device, device, _device);
+	CPU_FROM_HANDLE(cpu_device_memory, mem, _memory);
+
+	if (mem == NULL)
+		return;
+
+	// TODO implement unmap
+	printf("Unmap device: %p mem: %p\n", device, mem);
+}
+
+VkResult cpu_CreateBuffer(
+	VkDevice                                    _device,
+	const VkBufferCreateInfo*                   pCreateInfo,
+	const VkAllocationCallbacks*                pAllocator,
+	VkBuffer*                                   pBuffer)
+{
+	// TODO implement create buffer
 	return VK_ERROR_OUT_OF_HOST_MEMORY;
 }
 
-void slow_GetPhysicalDeviceQueueFamilyProperties(
+void cpu_GetPhysicalDeviceQueueFamilyProperties(
 	VkPhysicalDevice                            physicalDevice,
 	uint32_t*                                   pCount,
 	VkQueueFamilyProperties*                    pQueueFamilyProperties)
@@ -490,7 +605,7 @@ void slow_GetPhysicalDeviceQueueFamilyProperties(
 	};
 }
 
-VkResult slow_EnumerateDeviceExtensionProperties(
+VkResult cpu_EnumerateDeviceExtensionProperties(
 	VkPhysicalDevice                            physicalDevice,
 	const char*                                 pLayerName,
 	uint32_t*                                   pPropertyCount,

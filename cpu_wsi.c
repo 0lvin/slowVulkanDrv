@@ -1,9 +1,9 @@
 #include <stdio.h>
-#include "slow_private.h"
+#include "cpu_private.h"
 #include "vk_alloc.h"
 #include <stdbool.h>
 
-VkResult slow_GetPhysicalDeviceSurfaceSupportKHR(
+VkResult cpu_GetPhysicalDeviceSurfaceSupportKHR(
     VkPhysicalDevice                            physicalDevice,
     uint32_t                                    queueFamilyIndex,
     VkSurfaceKHR                                _surface,
@@ -14,7 +14,7 @@ VkResult slow_GetPhysicalDeviceSurfaceSupportKHR(
 	return VK_SUCCESS;
 }
 
-VkResult slow_GetPhysicalDeviceSurfaceCapabilitiesKHR(
+VkResult cpu_GetPhysicalDeviceSurfaceCapabilitiesKHR(
     VkPhysicalDevice                            physicalDevice,
     VkSurfaceKHR                                _surface,
     VkSurfaceCapabilitiesKHR*                   pSurfaceCapabilities)
@@ -23,7 +23,7 @@ VkResult slow_GetPhysicalDeviceSurfaceCapabilitiesKHR(
 	return VK_INCOMPLETE;
 }
 
-VkResult slow_GetPhysicalDeviceSurfaceFormatsKHR(
+VkResult cpu_GetPhysicalDeviceSurfaceFormatsKHR(
     VkPhysicalDevice                            physicalDevice,
     VkSurfaceKHR                                _surface,
     uint32_t*                                   pSurfaceFormatCount,
@@ -33,7 +33,7 @@ VkResult slow_GetPhysicalDeviceSurfaceFormatsKHR(
 	return VK_INCOMPLETE;
 }
 
-VkResult slow_GetPhysicalDeviceSurfacePresentModesKHR(
+VkResult cpu_GetPhysicalDeviceSurfacePresentModesKHR(
     VkPhysicalDevice                            physicalDevice,
     VkSurfaceKHR                                _surface,
     uint32_t*                                   pPresentModeCount,
@@ -43,7 +43,7 @@ VkResult slow_GetPhysicalDeviceSurfacePresentModesKHR(
 	return VK_INCOMPLETE;
 }
 
-void slow_DestroySurfaceKHR(
+void cpu_DestroySurfaceKHR(
     VkInstance                                   _instance,
     VkSurfaceKHR                                 _surface,
     const VkAllocationCallbacks*                 pAllocator)

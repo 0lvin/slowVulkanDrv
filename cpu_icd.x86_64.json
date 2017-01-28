@@ -1,7 +1,7 @@
 {
     "file_format_version": "1.0.0",
     "ICD": {
-        "library_path": "libvulkan_slow.so",
+        "library_path": "libvulkan_cpu.so",
         "api_version": "1.0.3"
     }
 }

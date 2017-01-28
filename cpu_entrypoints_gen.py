@@ -100,13 +100,13 @@ for line in fileinput.input():
         entrypoints.append((m.group(1), m.group(2), m.group(3), i, h))
         i = i + 1
 
-# For outputting entrypoints.h we generate a slow_EntryPoint() prototype
+# For outputting entrypoints.h we generate a cpu_EntryPoint() prototype
 # per entry point.
 
 if opt_header:
     print "/* This file generated from vk_gen.py, don't edit directly. */\n"
 
-    print "struct slow_dispatch_table {"
+    print "struct cpu_dispatch_table {"
     print "   union {"
     print "      void *entrypoints[%d];" % len(entrypoints)
     print "      struct {"
@@ -127,7 +127,7 @@ if opt_header:
 
     for type, name, args, num, h in entrypoints:
         print_guard_start(name)
-        print "%s slow_%s%s;" % (type, name, args)
+        print "%s cpu_%s%s;" % (type, name, args)
         print_guard_end(name)
     exit()
 
@@ -158,9 +158,9 @@ print """/*
 
 /* DO NOT EDIT! This is a generated file. */
 
-#include "slow_private.h"
+#include "cpu_private.h"
 
-struct slow_entrypoint {
+struct cpu_entrypoint {
    uint32_t name;
    uint32_t hash;
 };
@@ -182,7 +182,7 @@ print "   ;"
 
 # Now generate the table of all entry points
 
-print "\nstatic const struct slow_entrypoint entrypoints[] = {"
+print "\nstatic const struct cpu_entrypoint entrypoints[] = {"
 for type, name, args, num, h in entrypoints:
     print "   { %5d, 0x%08x }," % (offsets[num], h)
 print "};\n"
@@ -195,12 +195,12 @@ print """
  */
 """
 
-for layer in [ "slow" ]:
+for layer in [ "cpu" ]:
     for type, name, args, num, h in entrypoints:
         print_guard_start(name)
         print "%s %s_%s%s __attribute__ ((weak));" % (type, layer, name, args)
         print_guard_end(name)
-    print "\nconst struct slow_dispatch_table %s_layer = {" % layer
+    print "\nconst struct cpu_dispatch_table %s_layer = {" % layer
     for type, name, args, num, h in entrypoints:
         print_guard_start(name)
         print "   .%s = %s_%s," % (name, layer, name)
@@ -210,9 +210,9 @@ for layer in [ "slow" ]:
 print """
 
 void * __attribute__ ((noinline))
-slow_resolve_entrypoint(uint32_t index)
+cpu_resolve_entrypoint(uint32_t index)
 {
-   return slow_layer.entrypoints[index];
+   return cpu_layer.entrypoints[index];
 }
 """
 
@@ -257,18 +257,18 @@ for i in xrange(0, hash_size, 8):
             print "0x%04x," % (map[j] & 0xffff),
     print
 
-print "};"    
+print "};"
 
 # Finally we generate the hash table lookup function.  The hash function and
 # linear probing algorithm matches the hash table generated above.
 
 print """
 void *
-slow_lookup_entrypoint(const char *name)
+cpu_lookup_entrypoint(const char *name)
 {
    static const uint32_t prime_factor = %d;
    static const uint32_t prime_step = %d;
-   const struct slow_entrypoint *e;
+   const struct cpu_entrypoint *e;
    uint32_t hash, h, i;
    const char *p;
 
@@ -288,6 +288,6 @@ slow_lookup_entrypoint(const char *name)
    if (strcmp(name, strings + e->name) != 0)
       return NULL;
 
-   return slow_resolve_entrypoint(i);
+   return cpu_resolve_entrypoint(i);
 }
 """ % (prime_factor, prime_step, hash_mask)
