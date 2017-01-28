@@ -1,6 +1,9 @@
 #ifndef CPU_PRIVATE_H
 #define CPU_PRIVATE_H
 
+#define VK_USE_PLATFORM_XLIB_KHR
+#define VK_USE_PLATFORM_XCB_KHR
+
 #include <stdbool.h>
 #include <vulkan/vulkan.h>
 #include <vulkan/vk_icd.h>

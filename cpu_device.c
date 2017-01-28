@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include "cpu_private.h"
 #include "vk_alloc.h"
-#include <stdbool.h>
 #include <vulkan/vk_icd.h>
 
 VKAPI_ATTR VkResult VKAPI_CALL vk_icdNegotiateLoaderICDInterfaceVersion(uint32_t* pSupportedVersion){
@@ -63,6 +62,12 @@ static const VkExtensionProperties global_extensions[] = {
 		.extensionName = VK_KHR_SURFACE_EXTENSION_NAME,
 		.specVersion = 25,
 	},
+#ifdef VK_USE_PLATFORM_XCB_KHR
+	{
+		.extensionName = VK_KHR_XCB_SURFACE_EXTENSION_NAME,
+		.specVersion = 6,
+	},
+#endif
 #ifdef VK_USE_PLATFORM_XLIB_KHR
 	{
 		.extensionName = VK_KHR_XLIB_SURFACE_EXTENSION_NAME,

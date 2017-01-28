@@ -5,7 +5,6 @@
 #include <xcb/present.h>
 
 #include "cpu_private.h"
-#include <stdbool.h>
 
 VkBool32 cpu_GetPhysicalDeviceXcbPresentationSupportKHR(
     VkPhysicalDevice                            physicalDevice,
@@ -26,3 +25,27 @@ VkBool32 cpu_GetPhysicalDeviceXlibPresentationSupportKHR(
 	// TODO: return real support
 	return false;
 }
+
+#ifdef VK_USE_PLATFORM_XCB_KHR
+VkResult cpu_CreateXcbSurfaceKHR(
+    VkInstance                                  _instance,
+    const VkXcbSurfaceCreateInfoKHR*            pCreateInfo,
+    const VkAllocationCallbacks*                pAllocator,
+    VkSurfaceKHR*                               pSurface)
+{
+	// TODO: return real support
+	return VK_INCOMPLETE;
+}
+#endif
+
+#ifdef VK_USE_PLATFORM_XLIB_KHR
+VkResult cpu_CreateXlibSurfaceKHR(
+    VkInstance                                  _instance,
+    const VkXlibSurfaceCreateInfoKHR*           pCreateInfo,
+    const VkAllocationCallbacks*                pAllocator,
+    VkSurfaceKHR*                               pSurface)
+{
+	// TODO: return real support
+	return VK_INCOMPLETE;
+}
+#endif
