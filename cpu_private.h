@@ -57,6 +57,17 @@ struct cpu_device_memory {
 	void *				map;
 };
 
+struct cpu_buffer {
+	struct cpu_device *	device;
+	VkDeviceSize		size;
+
+	VkBufferUsageFlags	usage;
+
+	/* Set when bound */
+	void *			bo;
+	VkDeviceSize		offset;
+};
+
 #define CPU_DEFINE_HANDLE_CASTS(__cpu_type, __VkType)		\
 								\
 	static inline struct __cpu_type *			\
@@ -92,6 +103,7 @@ CPU_DEFINE_HANDLE_CASTS(cpu_device, VkDevice)
 CPU_DEFINE_HANDLE_CASTS(cpu_instance, VkInstance)
 CPU_DEFINE_HANDLE_CASTS(cpu_physical_device, VkPhysicalDevice)
 
+CPU_DEFINE_NONDISP_HANDLE_CASTS(cpu_buffer, VkBuffer)
 CPU_DEFINE_NONDISP_HANDLE_CASTS(cpu_device_memory, VkDeviceMemory)
 
 #endif /* CPU_PRIVATE_H */

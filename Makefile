@@ -31,8 +31,11 @@ cpu_wsi.o: cpu_wsi.c cpu_private.h cpu_entrypoints.h
 cpu_wsi_x11.o: cpu_wsi_x11.c cpu_private.h cpu_entrypoints.h
 	gcc -fPIC -g -c -Wall cpu_wsi_x11.c -Iinclude
 
-libvulkan_cpu.so: cpu_device.o cpu_entrypoints.o cpu_formats.o cpu_wsi.o cpu_wsi_x11.o
-	gcc -g -shared -Wl,-soname,libvulkan_cpu.so.1 -o $@ cpu_device.o cpu_formats.o cpu_wsi.o cpu_wsi_x11.o cpu_entrypoints.o -lc
+cpu_pipeline.o: cpu_pipeline.c cpu_private.h cpu_entrypoints.h
+	gcc -fPIC -g -c -Wall cpu_pipeline.c -Iinclude
+
+libvulkan_cpu.so: cpu_device.o cpu_entrypoints.o cpu_formats.o cpu_wsi.o cpu_wsi_x11.o cpu_pipeline.o
+	gcc -g -shared -Wl,-soname,libvulkan_cpu.so.1 -o $@ cpu_device.o cpu_pipeline.o cpu_formats.o cpu_wsi.o cpu_wsi_x11.o cpu_entrypoints.o -lc
 
 clean:
 	rm -f *.o

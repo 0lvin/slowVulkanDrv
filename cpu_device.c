@@ -579,16 +579,6 @@ void cpu_UnmapMemory(
 	printf("Unmap device: %p mem: %p\n", device, mem);
 }
 
-VkResult cpu_CreateBuffer(
-	VkDevice                                    _device,
-	const VkBufferCreateInfo*                   pCreateInfo,
-	const VkAllocationCallbacks*                pAllocator,
-	VkBuffer*                                   pBuffer)
-{
-	// TODO implement create buffer
-	return VK_ERROR_OUT_OF_HOST_MEMORY;
-}
-
 void cpu_GetPhysicalDeviceQueueFamilyProperties(
 	VkPhysicalDevice                            physicalDevice,
 	uint32_t*                                   pCount,
@@ -626,6 +616,66 @@ VkResult cpu_EnumerateDeviceExtensionProperties(
 
 	if (*pPropertyCount < ARRAY_SIZE(device_extensions))
 		return VK_INCOMPLETE;
+
+	return VK_SUCCESS;
+}
+
+VkResult cpu_CreateBuffer(
+	VkDevice                                    _device,
+	const VkBufferCreateInfo*                   pCreateInfo,
+	const VkAllocationCallbacks*                pAllocator,
+	VkBuffer*                                   pBuffer)
+{
+	CPU_FROM_HANDLE(cpu_device, device, _device);
+	struct cpu_buffer *buffer;
+
+	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO);
+
+	buffer = vk_alloc2(&device->alloc, pAllocator, sizeof(*buffer), 8,
+			     VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+	if (buffer == NULL)
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+
+	buffer->size = pCreateInfo->size;
+	buffer->usage = pCreateInfo->usage;
+	buffer->bo = NULL;
+	buffer->offset = 0;
+
+	*pBuffer = cpu_buffer_to_handle(buffer);
+
+	return VK_SUCCESS;
+}
+
+void cpu_DestroyBuffer(
+	VkDevice                                    _device,
+	VkBuffer                                    _buffer,
+	const VkAllocationCallbacks*                pAllocator)
+{
+	CPU_FROM_HANDLE(cpu_device, device, _device);
+	CPU_FROM_HANDLE(cpu_buffer, buffer, _buffer);
+
+	if (!buffer)
+		return;
+
+	vk_free2(&device->alloc, pAllocator, buffer);
+}
+
+VkResult cpu_BindBufferMemory(
+	VkDevice                                    device,
+	VkBuffer                                    _buffer,
+	VkDeviceMemory                              _memory,
+	VkDeviceSize                                memoryOffset)
+{
+	CPU_FROM_HANDLE(cpu_device_memory, mem, _memory);
+	CPU_FROM_HANDLE(cpu_buffer, buffer, _buffer);
+
+	if (mem) {
+		buffer->bo = mem->map;
+		buffer->offset = memoryOffset;
+	} else {
+		buffer->bo = NULL;
+		buffer->offset = 0;
+	}
 
 	return VK_SUCCESS;
 }
