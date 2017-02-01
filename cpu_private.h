@@ -40,6 +40,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include "cpu_entrypoints.h"
+#include "cpu_descriptor_set.h"
 #include "util/macros.h"
 
 #define MAX_PUSH_CONSTANTS_SIZE 128
@@ -106,6 +107,10 @@ struct cpu_shader_module {
 	char                                         data[0];
 };
 
+struct cpu_sampler {
+	uint32_t state[4];
+};
+
 #define CPU_DEFINE_HANDLE_CASTS(__cpu_type, __VkType)		\
 								\
 	static inline struct __cpu_type *			\
@@ -141,8 +146,16 @@ CPU_DEFINE_HANDLE_CASTS(cpu_device, VkDevice)
 CPU_DEFINE_HANDLE_CASTS(cpu_instance, VkInstance)
 CPU_DEFINE_HANDLE_CASTS(cpu_physical_device, VkPhysicalDevice)
 
+CPU_DEFINE_NONDISP_HANDLE_CASTS(cpu_descriptor_set_layout, VkDescriptorSetLayout)
 CPU_DEFINE_NONDISP_HANDLE_CASTS(cpu_buffer, VkBuffer)
 CPU_DEFINE_NONDISP_HANDLE_CASTS(cpu_device_memory, VkDeviceMemory)
+CPU_DEFINE_NONDISP_HANDLE_CASTS(cpu_sampler, VkSampler)
 CPU_DEFINE_NONDISP_HANDLE_CASTS(cpu_shader_module, VkShaderModule)
+
+static inline int
+align(int value, int alignment)
+{
+   return (value + alignment - 1) & ~(alignment - 1);
+}
 
 #endif /* CPU_PRIVATE_H */
