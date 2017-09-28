@@ -116,6 +116,46 @@ VkPhysicalDevice init_device(VkInstance vulkan_instance) {
 	return selected_device;
 }
 
+int graphic_Queue(VkInstance vulkan_instance, VkPhysicalDevice physicalDevice) {
+	int queue_family_count = 0;
+	int graphic = -1;
+	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queue_family_count, NULL);
+	VkQueueFamilyProperties *queue_families = calloc(sizeof(VkQueueFamilyProperties), queue_family_count);
+	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queue_family_count, queue_families);
+	for(int i=0; i < queue_family_count; i++) {
+		if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+			graphic = i;
+			break;
+		}
+	}
+	free(queue_families);
+	return graphic;
+}
+
+VkDevice init_virt_device(VkInstance vulkan_instance, VkPhysicalDevice physicalDevice, int graphic_queue_id) {
+	VkDeviceQueueCreateInfo queueCreateInfo = {};
+	queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	queueCreateInfo.queueFamilyIndex = graphic_queue_id;
+	queueCreateInfo.queueCount = 1;
+	float queuePriority = 1.0f;
+	queueCreateInfo.pQueuePriorities = &queuePriority;
+
+	VkPhysicalDeviceFeatures deviceFeatures = {};
+	VkDeviceCreateInfo createInfo = {};
+	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	createInfo.pQueueCreateInfos = &queueCreateInfo;
+	createInfo.queueCreateInfoCount = 1;
+	createInfo.pEnabledFeatures = &deviceFeatures;
+	createInfo.enabledExtensionCount = 0;
+	createInfo.enabledLayerCount = 0;
+	VkDevice logicalDevice = NULL;
+	if (vkCreateDevice(physicalDevice, &createInfo, NULL, &logicalDevice) != VK_SUCCESS) {
+		SDL_Log("failed to create logical device!");
+		return NULL;
+	}
+	return logicalDevice;
+}
+
 int main(int argc, char *argv[])
 {
 	SDL_Window *window;                    // Declare a pointer
@@ -153,7 +193,10 @@ int main(int argc, char *argv[])
 	if (vulkan_instance) {
 		VkSurfaceKHR vulkan_surface = init_surface(vulkan_instance, &sys_wm_info);
 		VkPhysicalDevice phy_device = init_device(vulkan_instance);
-
+		int graphic_queue_id = graphic_Queue(vulkan_instance, phy_device);
+		VkDevice logicalDevice = init_virt_device(vulkan_instance, phy_device, graphic_queue_id);
+		VkQueue graphicsQueue;
+		vkGetDeviceQueue(logicalDevice, graphic_queue_id, 0, &graphicsQueue);
 	}
 	// The window is open: could enter program loop here (see SDL_PollEvent())
 	SDL_Delay(3000);  // Pause execution for 3000 milliseconds, for example
