@@ -6,22 +6,14 @@
 #include <X11/Xlib-xcb.h> /* for XGetXCBConnection() */
 #endif
 
-void init_surface(SDL_Window *window)
+VkInstance init_instance()
 {
 	VkResult err;
 	uint32_t i;
-	static SDL_SysWMinfo sys_wm_info;
 	int found_surface_extensions = 0;
 	uint32_t instance_extension_count;
 
 	VkInstance vulkan_instance;
-	VkSurfaceKHR vulkan_surface;
-
-	SDL_VERSION(&sys_wm_info.version);
-	if(!SDL_GetWindowWMInfo(window, &sys_wm_info)) {
-		SDL_Log("Couldn't get window wm info");
-		return;
-	}
 
 	err = vkEnumerateInstanceExtensionProperties(NULL, &instance_extension_count, NULL);
 	if (err == VK_SUCCESS || instance_extension_count > 0)
@@ -48,7 +40,7 @@ void init_surface(SDL_Window *window)
 
 	if(found_surface_extensions != 2) {
 		SDL_Log("Couldn't find %s/%s extensions", VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_XCB_SURFACE_EXTENSION_NAME);
-		return;
+		return NULL;
 	}
 
 	VkApplicationInfo application_info;
@@ -72,20 +64,39 @@ void init_surface(SDL_Window *window)
 	err = vkCreateInstance(&instance_create_info, NULL, &vulkan_instance);
 	if (err != VK_SUCCESS) {
 		SDL_Log("Couldn't create Vulkan instance");
-		return;
+		return NULL;
 	}
+	return vulkan_instance;
+}
+
+VkSurfaceKHR init_surface(VkInstance vulkan_instance, SDL_SysWMinfo *sys_wm_info)
+{
+	VkResult err;
+	uint32_t i;
+	VkSurfaceKHR vulkan_surface;
 
 	VkXcbSurfaceCreateInfoKHR surface_create_info;
 	memset(&surface_create_info, 0, sizeof(surface_create_info));
 	surface_create_info.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
-	surface_create_info.connection = XGetXCBConnection((Display*) sys_wm_info.info.x11.display);
-	surface_create_info.window = sys_wm_info.info.x11.window;
+	surface_create_info.connection = XGetXCBConnection((Display*) sys_wm_info->info.x11.display);
+	surface_create_info.window = sys_wm_info->info.x11.window;
 
 	err = vkCreateXcbSurfaceKHR(vulkan_instance, &surface_create_info, NULL, &vulkan_surface);
 	if (err != VK_SUCCESS) {
 		SDL_Log("Couldn't create Vulkan surface");
-		return;
+		return NULL;
 	}
+	return vulkan_surface;
+}
+
+void* init_device(VkInstance vulkan_instance) {
+	uint32_t deviceCount = 0;
+	vkEnumeratePhysicalDevices(vulkan_instance, &deviceCount, NULL);
+	if (deviceCount < 1) {
+		SDL_Log("Failed to find GPUs with Vulkan support!");
+		return NULL;
+	}
+	return NULL;
 }
 
 int main(int argc, char *argv[])
@@ -114,8 +125,17 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	init_surface(window);
+	static SDL_SysWMinfo sys_wm_info;
+	SDL_VERSION(&sys_wm_info.version);
+	if(!SDL_GetWindowWMInfo(window, &sys_wm_info)) {
+		SDL_Log("Couldn't get window wm info");
+		return 1;
+	}
 
+	VkInstance vulkan_instance = init_instance();
+	if (vulkan_instance) {
+		VkSurfaceKHR vulkan_surface = init_surface(vulkan_instance, &sys_wm_info);
+	}
 	// The window is open: could enter program loop here (see SDL_PollEvent())
 	SDL_Delay(3000);  // Pause execution for 3000 milliseconds, for example
 
