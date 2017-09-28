@@ -89,14 +89,31 @@ VkSurfaceKHR init_surface(VkInstance vulkan_instance, SDL_SysWMinfo *sys_wm_info
 	return vulkan_surface;
 }
 
-void* init_device(VkInstance vulkan_instance) {
-	uint32_t deviceCount = 0;
-	vkEnumeratePhysicalDevices(vulkan_instance, &deviceCount, NULL);
-	if (deviceCount < 1) {
+VkPhysicalDevice init_device(VkInstance vulkan_instance) {
+	uint32_t device_count = 0;
+	vkEnumeratePhysicalDevices(vulkan_instance, &device_count, NULL);
+	if (device_count < 1) {
 		SDL_Log("Failed to find GPUs with Vulkan support!");
 		return NULL;
 	}
-	return NULL;
+	VkPhysicalDevice selected_device = NULL;
+	VkPhysicalDevice *devices = calloc(sizeof(VkPhysicalDevice), device_count);
+	vkEnumeratePhysicalDevices(vulkan_instance, &device_count, devices);
+	for (int i = 0; i < device_count; i ++) {
+		VkPhysicalDeviceFeatures device_features;
+		vkGetPhysicalDeviceFeatures(devices[i], &device_features);
+		if (device_features.geometryShader) {
+			selected_device = devices[i];
+			break;
+		}
+	}
+
+	if (selected_device == NULL) {
+		SDL_Log("failed to find a suitable GPU!");
+		return NULL;
+	}
+	free(devices);
+	return selected_device;
 }
 
 int main(int argc, char *argv[])
@@ -135,6 +152,8 @@ int main(int argc, char *argv[])
 	VkInstance vulkan_instance = init_instance();
 	if (vulkan_instance) {
 		VkSurfaceKHR vulkan_surface = init_surface(vulkan_instance, &sys_wm_info);
+		VkPhysicalDevice phy_device = init_device(vulkan_instance);
+
 	}
 	// The window is open: could enter program loop here (see SDL_PollEvent())
 	SDL_Delay(3000);  // Pause execution for 3000 milliseconds, for example
