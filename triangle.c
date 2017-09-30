@@ -193,10 +193,16 @@ int main(int argc, char *argv[])
 	if (vulkan_instance) {
 		VkSurfaceKHR vulkan_surface = init_surface(vulkan_instance, &sys_wm_info);
 		VkPhysicalDevice phy_device = init_device(vulkan_instance);
-		int graphic_queue_id = graphic_Queue(vulkan_instance, phy_device);
-		VkDevice logicalDevice = init_virt_device(vulkan_instance, phy_device, graphic_queue_id);
-		VkQueue graphicsQueue;
-		vkGetDeviceQueue(logicalDevice, graphic_queue_id, 0, &graphicsQueue);
+		if (phy_device) {
+			int graphic_queue_id = graphic_Queue(vulkan_instance, phy_device);
+			if (graphic_queue_id >= 0) {
+				VkDevice logicalDevice = init_virt_device(vulkan_instance, phy_device, graphic_queue_id);
+				if (logicalDevice) {
+					VkQueue graphicsQueue;
+					vkGetDeviceQueue(logicalDevice, graphic_queue_id, 0, &graphicsQueue);
+				}
+			}
+		}
 	}
 	// The window is open: could enter program loop here (see SDL_PollEvent())
 	SDL_Delay(3000);  // Pause execution for 3000 milliseconds, for example
