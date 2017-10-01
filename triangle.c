@@ -109,6 +109,12 @@ VkPhysicalDevice init_device(VkInstance vulkan_instance) {
 	}
 
 	if (selected_device == NULL) {
+		SDL_Log("No GPU with geometry shader support! will use first avaible!");
+		if (device_count > 0) {
+			selected_device = devices[0];
+		}
+	}
+	if (selected_device == NULL) {
 		SDL_Log("failed to find a suitable GPU!");
 		return NULL;
 	}
