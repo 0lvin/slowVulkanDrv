@@ -217,6 +217,8 @@ int main(int argc, char *argv[])
 	// The window is open: could enter program loop here (see SDL_PollEvent())
 	SDL_Delay(3000);  // Pause execution for 3000 milliseconds, for example
 
+	if (logicalDevice)
+		vkDestroyDevice(logicalDevice, NULL);
 	// Close and destroy the window
 	SDL_DestroyWindow(window);
 
