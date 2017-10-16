@@ -122,20 +122,44 @@ VkPhysicalDevice init_device(VkInstance vulkan_instance) {
 	return selected_device;
 }
 
-int graphic_Queue(VkInstance vulkan_instance, VkPhysicalDevice physicalDevice) {
+void graphic_Queue(VkInstance vulkan_instance, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, int *graphics_queue_family_index, int *present_queue_family_index) {
 	int queue_family_count = 0;
-	int graphic = -1;
 	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queue_family_count, NULL);
 	VkQueueFamilyProperties *queue_families = calloc(sizeof(VkQueueFamilyProperties), queue_family_count);
 	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queue_family_count, queue_families);
-	for(int i=0; i < queue_family_count; i++) {
-		if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-			graphic = i;
-			break;
+
+	// Iterate over each queue to learn whether it supports presenting:
+	VkBool32 *pSupportsPresent = (VkBool32 *)malloc(queue_family_count * sizeof(VkBool32));
+	for (uint32_t i = 0; i < queue_family_count; i++) {
+		vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &pSupportsPresent[i]);
+	}
+
+	// Search for a graphics and a present queue in the array of queue
+	// families, try to find one that supports both
+	*graphics_queue_family_index = -1;
+	*present_queue_family_index = -1;
+	for (uint32_t i = 0; i < queue_family_count; ++i) {
+		if ((queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0) {
+			if (*graphics_queue_family_index == -1)
+				*graphics_queue_family_index = i;
+			if (pSupportsPresent[i] == VK_TRUE) {
+				*graphics_queue_family_index = i;
+				*present_queue_family_index = i;
+				break;
+			}
 		}
 	}
-	free(queue_families);
-	return graphic;
+
+	if (*present_queue_family_index == -1) {
+		// If didn't find a queue that supports both graphics and present, then
+		// find a separate present queue.
+		for (size_t i = 0; i < queue_family_count; ++i)
+		    if (pSupportsPresent[i] == VK_TRUE) {
+			    *present_queue_family_index = i;
+			    break;
+		    }
+	}
+	free(pSupportsPresent);
 }
 
 VkDevice init_virt_device(VkInstance vulkan_instance, VkPhysicalDevice physicalDevice, int graphic_queue_id) {
@@ -198,24 +222,34 @@ int main(int argc, char *argv[])
 	VkInstance vulkan_instance = init_instance();
 	VkPhysicalDevice phy_device = NULL;
 	VkSurfaceKHR vulkan_surface = NULL;
-	int graphic_queue_id = -1;
+	int graphics_queue_family_index = -1;
+	int present_queue_family_index = -1;
 	VkDevice logicalDevice = NULL;
 	VkQueue graphicsQueue;
 	if (vulkan_instance)
 		vulkan_surface = init_surface(vulkan_instance, &sys_wm_info);
+
 	if (vulkan_instance)
 		phy_device = init_device(vulkan_instance);
-	if (phy_device)
-		graphic_queue_id = graphic_Queue(vulkan_instance, phy_device);
-	if (graphic_queue_id >= 0)
-		logicalDevice = init_virt_device(vulkan_instance, phy_device, graphic_queue_id);
+
+	if (phy_device && vulkan_surface)
+		graphic_Queue(vulkan_instance, phy_device, vulkan_surface, &graphics_queue_family_index, &present_queue_family_index);
+
+	if (graphics_queue_family_index >= 0)
+		logicalDevice = init_virt_device(vulkan_instance, phy_device, graphics_queue_family_index);
 	else
 		SDL_Log("No graphics queue!");
+
 	if (logicalDevice)
-		vkGetDeviceQueue(logicalDevice, graphic_queue_id, 0, &graphicsQueue);
+		vkGetDeviceQueue(logicalDevice, graphics_queue_family_index, 0, &graphicsQueue);
+
+	VkSwapchainKHR swapChain = NULL;
 
 	// The window is open: could enter program loop here (see SDL_PollEvent())
 	SDL_Delay(3000);  // Pause execution for 3000 milliseconds, for example
+
+	if (swapChain)
+		vkDestroySwapchainKHR(logicalDevice, swapChain, NULL);
 
 	if (logicalDevice)
 		vkDestroyDevice(logicalDevice, NULL);
