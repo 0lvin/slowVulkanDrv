@@ -123,7 +123,7 @@ VkPhysicalDevice init_device(VkInstance vulkan_instance) {
 }
 
 void graphic_Queue(VkInstance vulkan_instance, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, int *graphics_queue_family_index, int *present_queue_family_index) {
-	int queue_family_count = 0;
+	unsigned int queue_family_count = 0;
 	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queue_family_count, NULL);
 	VkQueueFamilyProperties *queue_families = calloc(sizeof(VkQueueFamilyProperties), queue_family_count);
 	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queue_family_count, queue_families);
@@ -163,21 +163,23 @@ void graphic_Queue(VkInstance vulkan_instance, VkPhysicalDevice physicalDevice, 
 }
 
 VkDevice init_virt_device(VkInstance vulkan_instance, VkPhysicalDevice physicalDevice, int graphic_queue_id) {
-	VkDeviceQueueCreateInfo queueCreateInfo = {};
-	queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	queueCreateInfo.queueFamilyIndex = graphic_queue_id;
-	queueCreateInfo.queueCount = 1;
+	VkDeviceQueueCreateInfo queueCreateInfo = {
+	    .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+	    .queueFamilyIndex = graphic_queue_id,
+	    .queueCount = 1
+	};
 	float queuePriority = 1.0f;
 	queueCreateInfo.pQueuePriorities = &queuePriority;
 
-	VkPhysicalDeviceFeatures deviceFeatures = {};
-	VkDeviceCreateInfo createInfo = {};
-	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	createInfo.pQueueCreateInfos = &queueCreateInfo;
-	createInfo.queueCreateInfoCount = 1;
-	createInfo.pEnabledFeatures = &deviceFeatures;
-	createInfo.enabledExtensionCount = 0;
-	createInfo.enabledLayerCount = 0;
+	VkPhysicalDeviceFeatures deviceFeatures = {0};
+	VkDeviceCreateInfo createInfo = {
+	    .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+	    .pQueueCreateInfos = &queueCreateInfo,
+	    .queueCreateInfoCount = 1,
+	    .pEnabledFeatures = &deviceFeatures,
+	    .enabledExtensionCount = 0,
+	    .enabledLayerCount = 0
+	};
 	VkDevice logicalDevice = NULL;
 	if (vkCreateDevice(physicalDevice, &createInfo, NULL, &logicalDevice) != VK_SUCCESS) {
 		SDL_Log("failed to create logical device!");
@@ -189,6 +191,8 @@ VkDevice init_virt_device(VkInstance vulkan_instance, VkPhysicalDevice physicalD
 int main(int argc, char *argv[])
 {
 	SDL_Window *window;                    // Declare a pointer
+	int windowWidth = 640;
+	int windowHeight = 480;
 
 	if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO | SDL_INIT_EVENTS) != 0) {
 		SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
@@ -200,8 +204,8 @@ int main(int argc, char *argv[])
 		"An SDL2 window",                  // window title
 		SDL_WINDOWPOS_UNDEFINED,           // initial x position
 		SDL_WINDOWPOS_UNDEFINED,           // initial y position
-		640,                               // width, in pixels
-		480,                               // height, in pixels
+		windowWidth,                               // width, in pixels
+		windowHeight,                               // height, in pixels
 		0                                  // flags
 	);
 
@@ -244,9 +248,161 @@ int main(int argc, char *argv[])
 		vkGetDeviceQueue(logicalDevice, graphics_queue_family_index, 0, &graphicsQueue);
 
 	VkSwapchainKHR swapChain = NULL;
+	VkImage *swapchainImages = NULL;
+	VkImageView *swapchainViews = NULL;
+	{
+	    // Get the list of VkFormats that are supported:
+	    uint32_t formatCount;
+	    vkGetPhysicalDeviceSurfaceFormatsKHR(phy_device, vulkan_surface, &formatCount, NULL);
+	    VkSurfaceFormatKHR *surfFormats = (VkSurfaceFormatKHR *)malloc(formatCount * sizeof(VkSurfaceFormatKHR));
+	    vkGetPhysicalDeviceSurfaceFormatsKHR(phy_device, vulkan_surface, &formatCount, surfFormats);
+
+	    VkFormat imageFormat;
+	    // If the format list includes just one entry of VK_FORMAT_UNDEFINED,
+	    // the surface has no preferred format.  Otherwise, at least one
+	    // supported format will be returned.
+	    if (formatCount == 1 && surfFormats[0].format == VK_FORMAT_UNDEFINED) {
+		imageFormat = VK_FORMAT_B8G8R8A8_UNORM;
+	    } else {
+		imageFormat = surfFormats[0].format;
+	    }
+	    free(surfFormats);
+
+	    VkSurfaceCapabilitiesKHR surfCapabilities;
+
+	    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(phy_device, vulkan_surface, &surfCapabilities);
+
+	    uint32_t presentModeCount;
+	    vkGetPhysicalDeviceSurfacePresentModesKHR(phy_device, vulkan_surface, &presentModeCount, NULL);
+
+	    VkPresentModeKHR *presentModes = (VkPresentModeKHR *)malloc(presentModeCount * sizeof(VkPresentModeKHR));
+
+	    vkGetPhysicalDeviceSurfacePresentModesKHR(phy_device, vulkan_surface, &presentModeCount, presentModes);
+
+	    VkExtent2D swapchainExtent;
+	    // width and height are either both 0xFFFFFFFF, or both not 0xFFFFFFFF.
+	    if (surfCapabilities.currentExtent.width == 0xFFFFFFFF) {
+		// If the surface size is undefined, the size is set to
+		// the size of the images requested.
+		swapchainExtent.width = windowWidth;
+		swapchainExtent.height = windowHeight;
+		if (swapchainExtent.width < surfCapabilities.minImageExtent.width) {
+		    swapchainExtent.width = surfCapabilities.minImageExtent.width;
+		} else if (swapchainExtent.width > surfCapabilities.maxImageExtent.width) {
+		    swapchainExtent.width = surfCapabilities.maxImageExtent.width;
+		}
+
+		if (swapchainExtent.height < surfCapabilities.minImageExtent.height) {
+		    swapchainExtent.height = surfCapabilities.minImageExtent.height;
+		} else if (swapchainExtent.height > surfCapabilities.maxImageExtent.height) {
+		    swapchainExtent.height = surfCapabilities.maxImageExtent.height;
+		}
+	    } else {
+		// If the surface size is defined, the swap chain size must match
+		swapchainExtent = surfCapabilities.currentExtent;
+	    }
+
+	    // The FIFO present mode is guaranteed by the spec to be supported
+	    VkPresentModeKHR swapchainPresentMode = VK_PRESENT_MODE_FIFO_KHR;
+
+	    // Determine the number of VkImage's to use in the swap chain.
+	    // We need to acquire only 1 presentable image at at time.
+	    // Asking for minImageCount images ensures that we can acquire
+	    // 1 presentable image as long as we present it before attempting
+	    // to acquire another.
+	    uint32_t desiredNumberOfSwapChainImages = surfCapabilities.minImageCount;
+
+	    VkSurfaceTransformFlagBitsKHR preTransform;
+	    if (surfCapabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR) {
+		preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+	    } else {
+		preTransform = surfCapabilities.currentTransform;
+	    }
+
+	    // Find a supported composite alpha mode - one of these is guaranteed to be set
+	    VkCompositeAlphaFlagBitsKHR compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	    VkCompositeAlphaFlagBitsKHR compositeAlphaFlags[4] = {
+		VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+		VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
+		VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
+		VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
+	    };
+	    for (uint32_t i = 0; i < sizeof(compositeAlphaFlags); i++) {
+		if (surfCapabilities.supportedCompositeAlpha & compositeAlphaFlags[i]) {
+		    compositeAlpha = compositeAlphaFlags[i];
+		    break;
+		}
+	    }
+
+	    VkSwapchainCreateInfoKHR vulkan_swapchain_create_info = {
+		.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+		.pNext = NULL,
+		.surface = vulkan_surface,
+		.minImageCount = desiredNumberOfSwapChainImages,
+		.imageFormat = imageFormat,
+		.imageExtent.width = swapchainExtent.width,
+		.imageExtent.height = swapchainExtent.height,
+		.preTransform = preTransform,
+		.compositeAlpha = compositeAlpha,
+		.imageArrayLayers = 1,
+		.presentMode = swapchainPresentMode,
+		.oldSwapchain = VK_NULL_HANDLE,
+		.clipped = 1,
+		.imageColorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR,
+		.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+		.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
+		.queueFamilyIndexCount = 0,
+		.pQueueFamilyIndices = NULL
+	    };
+	    uint32_t queueFamilyIndices[2] = {(uint32_t)graphics_queue_family_index, (uint32_t)present_queue_family_index};
+	    if (graphics_queue_family_index != present_queue_family_index) {
+		// If the graphics and present queues are from different queue families,
+		// we either have to explicitly transfer ownership of images between
+		// the queues, or we have to create the swapchain with imageSharingMode
+		// as VK_SHARING_MODE_CONCURRENT
+		vulkan_swapchain_create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+		vulkan_swapchain_create_info.queueFamilyIndexCount = 2;
+		vulkan_swapchain_create_info.pQueueFamilyIndices = queueFamilyIndices;
+	    }
+
+	    vkCreateSwapchainKHR(logicalDevice, &vulkan_swapchain_create_info, NULL, &swapChain);
+
+	    unsigned int swapchainImageCount;
+	    vkGetSwapchainImagesKHR(logicalDevice, swapChain, &swapchainImageCount, NULL);
+
+	    VkImage *swapchainImages = (VkImage *)malloc(swapchainImageCount * sizeof(VkImage));
+	    VkImageView *swapchainViews = (VkImageView *)malloc(swapchainImageCount * sizeof(VkImageView));
+	    vkGetSwapchainImagesKHR(logicalDevice, swapChain, &swapchainImageCount, swapchainImages);
+
+	    for (uint32_t i = 0; i < swapchainImageCount; i++) {
+		VkImageViewCreateInfo color_image_view = {
+		    .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+		    .pNext = NULL,
+		    .flags = 0,
+		    .image = swapchainImages[i],
+		    .viewType = VK_IMAGE_VIEW_TYPE_2D,
+		    .format = imageFormat,
+		    .components.r = VK_COMPONENT_SWIZZLE_R,
+		    .components.g = VK_COMPONENT_SWIZZLE_G,
+		    .components.b = VK_COMPONENT_SWIZZLE_B,
+		    .components.a = VK_COMPONENT_SWIZZLE_A,
+		    .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+		    .subresourceRange.baseMipLevel = 0,
+		    .subresourceRange.levelCount = 1,
+		    .subresourceRange.baseArrayLayer = 0,
+		    .subresourceRange.layerCount = 1
+		};
+
+		vkCreateImageView(logicalDevice, &color_image_view, NULL, &swapchainViews[i]);
+	    }
+
+	}
 
 	// The window is open: could enter program loop here (see SDL_PollEvent())
 	SDL_Delay(3000);  // Pause execution for 3000 milliseconds, for example
+
+	if (swapchainImages)
+		free(swapchainImages);
 
 	if (swapChain)
 		vkDestroySwapchainKHR(logicalDevice, swapChain, NULL);
