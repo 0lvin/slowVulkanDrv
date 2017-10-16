@@ -219,6 +219,13 @@ int main(int argc, char *argv[])
 
 	if (logicalDevice)
 		vkDestroyDevice(logicalDevice, NULL);
+
+	if (vulkan_surface)
+		vkDestroySurfaceKHR(vulkan_instance, vulkan_surface, NULL);
+
+	if (vulkan_instance)
+		vkDestroyInstance(vulkan_instance, NULL);
+
 	// Close and destroy the window
 	SDL_DestroyWindow(window);
 
